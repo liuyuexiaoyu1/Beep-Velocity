@@ -30,10 +30,10 @@
 ## 🚀 安装与依赖
 
 ### 1. 依赖
-- **[PacketEvents](https://github.com/retrooper/packetevents)**。
-- **Velocity 3.0.0+**。
+- **[PacketEvents](https://github.com/retrooper/packetevents)**
+- **Velocity 3.0.0+**
 
 ### 2. 安装步骤
-1. 将所有`前置依赖`放入 `plugins` 目录。
+1. 将除Velocity以外的所有`前置依赖`放入 `plugins` 目录。
 2. 将本插件放入 `plugins` 目录。
 3. 启动服务器。
