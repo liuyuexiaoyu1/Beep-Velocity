@@ -157,7 +157,7 @@ public class BeepVelocity {
         }
 
         private void playBeep(Player target, Component sender) {
-            Runnable sendAction = snedSoundPacket(target);
+            Runnable sendAction = sendSoundPacket(target);
             sendAction.run();
             if (isBig) {
                 target.showTitle(Title.title(
@@ -191,7 +191,7 @@ public class BeepVelocity {
         }
     }
 
-    private static @NonNull Runnable snedSoundPacket(Player target) {
+    private static @NonNull Runnable sendSoundPacket(Player target) {
         return () -> {
             User user = PacketEvents.getAPI().getPlayerManager().getUser(target);
             WrapperPlayServerEntitySoundEffect packet = new WrapperPlayServerEntitySoundEffect(
