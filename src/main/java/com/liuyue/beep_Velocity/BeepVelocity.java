@@ -139,11 +139,15 @@ public class BeepVelocity {
 
             if (args[0].equalsIgnoreCase("all")) {
                 server.getAllPlayers().forEach(p -> playBeep(p, sender));
-            } else if(args[0].equalsIgnoreCase("thisServer") && invocation.source() instanceof Player p) {
-                p.getCurrentServer().ifPresent(serverConnection -> {
-                    RegisteredServer server = serverConnection.getServer();
-                    server.getPlayersConnected().forEach(player -> playBeep(player, sender));
-                });
+            } else if(args[0].equalsIgnoreCase("thisServer")) {
+                if (invocation.source() instanceof Player p) {
+                    p.getCurrentServer().ifPresent(serverConnection -> {
+                        RegisteredServer server = serverConnection.getServer();
+                        server.getPlayersConnected().forEach(player -> playBeep(player, sender));
+                    });
+                } else {
+                    server.getAllPlayers().forEach(p -> playBeep(p, sender));
+                }
             } else {
                 server.getPlayer(args[0]).ifPresentOrElse(
                         p -> playBeep(p, sender),
