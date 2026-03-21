@@ -31,8 +31,9 @@ jobs:
 
       - name: Collect plugin jars
         run: |
-          mkdir plugin-jars
-          cp target/!(*original-).jar plugin-jars/ || cp target/*.jar plugin-jars/
+          mkdir -p plugin-jars
+          find target/ -maxdepth 1 -type f -name "*.jar" ! -name "original-*" -exec cp {} plugin-jars/ \;
+          echo "Checking collected jars:"
           ls -l plugin-jars
 
       - name: Upload artifacts
