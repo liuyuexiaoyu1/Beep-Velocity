@@ -14,6 +14,7 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -138,6 +139,11 @@ public class BeepVelocity {
 
             if (args[0].equalsIgnoreCase("all")) {
                 server.getAllPlayers().forEach(p -> playBeep(p, sender));
+            } else if(args[0].equalsIgnoreCase("thisServer") && invocation.source() instanceof Player p) {
+                p.getCurrentServer().ifPresent(serverConnection -> {
+                    RegisteredServer server = serverConnection.getServer();
+                    server.getPlayersConnected().forEach(player -> playBeep(player, sender));
+                });
             } else {
                 server.getPlayer(args[0]).ifPresentOrElse(
                         p -> playBeep(p, sender),
@@ -173,6 +179,7 @@ public class BeepVelocity {
                         .filter(name -> name.toLowerCase().startsWith(prefix))
                         .collect(Collectors.toList());
                 if ("all".startsWith(prefix)) suggestions.add("all");
+                if ("thisServer".startsWith(prefix)) suggestions.add("thisServer");
                 return suggestions;
             }
             return List.of();
