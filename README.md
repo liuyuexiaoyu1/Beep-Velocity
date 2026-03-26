@@ -1,6 +1,5 @@
 # Beep-Velocity
 
-![Minecraft Version](https://img.shields.io/badge/Minecraft-1.16.5+-brightgreen)
 ![Velocity Version](https://img.shields.io/badge/Velocity-3.0+-blue)
 ![License](https://img.shields.io/badge/License-MIT-orange)
 
