@@ -5,12 +5,15 @@ import com.google.gson.GsonBuilder;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class BeepConfig {
     public boolean enableBigBeep = true;
     public long cooldownMillis = 3000;
     public long bigBeepCooldownMillis = 5000;
+    public List<String> blacklistedPlayers = new ArrayList<>();
 
     public static BeepConfig load(Path dataDirectory, Gson gson) {
         Path configFile = dataDirectory.resolve("config.json");

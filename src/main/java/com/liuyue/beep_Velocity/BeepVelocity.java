@@ -122,8 +122,8 @@ public class BeepVelocity {
                 Files.copy(in, target);
             } else {
                 String content = name.contains("zh")
-                        ? "{\"beep.title\":\"{0}在@你\",\"beep.subtitle\":\"\",\"beep.console\":\"控制台\",\"beep.cooldown\":\"请等待{0}秒后再使用此指令\"}"
-                        : "{\"beep.title\":\"{0} is pinging you\",\"beep.subtitle\":\"\",\"beep.console\":\"Console\",\"beep.cooldown\":\"Please wait {0}s before using this again\"}";
+                        ? "{\"beep.title\":\"{0}在@你\",\"beep.subtitle\":\"\",\"beep.console\":\"控制台\",\"beep.cooldown\":\"请等待{0}秒后再使用此指令\",\"beep.blacklisted\":\"你已被禁止使用@功能。}"
+                        : "{\"beep.title\":\"{0} is pinging you\",\"beep.subtitle\":\"\",\"beep.console\":\"Console\",\"beep.cooldown\":\"Please wait {0}s before using this again\",\"beep.blacklisted\":\"You are blacklisted from using the @ feature.}";
                 Files.writeString(target, content);
             }
         }
@@ -136,6 +136,14 @@ public class BeepVelocity {
         @Override
         public void execute(Invocation invocation) {
             if (invocation.source() instanceof Player player) {
+                String name = player.getUsername();
+                String uuid = player.getUniqueId().toString();
+                boolean isBlacklisted = config.blacklistedPlayers.stream()
+                        .anyMatch(entry -> entry.equalsIgnoreCase(name) || entry.equalsIgnoreCase(uuid));
+                if (isBlacklisted) {
+                    player.sendMessage(Component.translatable("beep.blacklisted", NamedTextColor.RED));
+                    return;
+                }
                 long now = System.currentTimeMillis();
                 long lastUse = cooldowns.getOrDefault(player.getUniqueId(), 0L);
                 long requiredDelay = isBig ? config.bigBeepCooldownMillis : config.cooldownMillis;

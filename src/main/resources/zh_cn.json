@@ -2,5 +2,6 @@
   "beep.title": "{0}在@你",
   "beep.subtitle": "",
   "beep.console": "控制台",
-  "beep.cooldown": "请等待{0}秒后再使用此指令"
+  "beep.cooldown": "请等待{0}秒后再使用此指令",
+  "beep.blacklisted": "你已被禁止使用 @ 功能。"
 }
