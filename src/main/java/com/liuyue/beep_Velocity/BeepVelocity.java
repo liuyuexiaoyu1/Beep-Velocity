@@ -47,6 +47,8 @@ public class BeepVelocity {
     private final Path dataDirectory;
     private final Map<Locale, Map<String, String>> langCache = new HashMap<>();
     private final Gson gson = new Gson();
+    private BeepConfig config;
+    private final Map<UUID, Long> cooldowns = new HashMap<>();
 
     @Inject
     public BeepVelocity(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -57,9 +59,12 @@ public class BeepVelocity {
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
+        this.config = BeepConfig.load(dataDirectory, gson);
         loadAllLanguages();
         server.getCommandManager().register(server.getCommandManager().metaBuilder("@").build(), new BeepCommand(false));
-        server.getCommandManager().register(server.getCommandManager().metaBuilder("@@").build(), new BeepCommand(true));
+        if (this.config.enableBigBeep) {
+            server.getCommandManager().register(server.getCommandManager().metaBuilder("@@").build(), new BeepCommand(true));
+        }
     }
 
     private void loadAllLanguages() {
@@ -117,8 +122,8 @@ public class BeepVelocity {
                 Files.copy(in, target);
             } else {
                 String content = name.contains("zh")
-                        ? "{\"beep.title\":\"{0}在@你\",\"beep.subtitle\":\"\",\"beep.console\":\"控制台\"}"
-                        : "{\"beep.title\":\"{0} is pinging you\",\"beep.subtitle\":\"\",\"beep.console\":\"Console\"}";
+                        ? "{\"beep.title\":\"{0}在@你\",\"beep.subtitle\":\"\",\"beep.console\":\"控制台\",\"beep.cooldown\":\"请等待{0}秒后再使用此指令\"}"
+                        : "{\"beep.title\":\"{0} is pinging you\",\"beep.subtitle\":\"\",\"beep.console\":\"Console\",\"beep.cooldown\":\"Please wait {0}s before using this again\"}";
                 Files.writeString(target, content);
             }
         }
@@ -130,6 +135,22 @@ public class BeepVelocity {
 
         @Override
         public void execute(Invocation invocation) {
+            if (invocation.source() instanceof Player player) {
+                long now = System.currentTimeMillis();
+                long lastUse = cooldowns.getOrDefault(player.getUniqueId(), 0L);
+                long requiredDelay = isBig ? config.bigBeepCooldownMillis : config.cooldownMillis;
+
+                if (now - lastUse < requiredDelay) {
+                    long timeLeft = (requiredDelay - (now - lastUse)) / 1000;
+                    player.sendMessage(Component.translatable(
+                            "beep.cooldown",
+                            NamedTextColor.RED,
+                            Component.text(timeLeft)
+                    ));
+                    return;
+                }
+                cooldowns.put(player.getUniqueId(), now);
+            }
             String[] args = invocation.arguments();
             if (args.length == 0) return;
 
@@ -171,6 +192,8 @@ public class BeepVelocity {
 
                 server.getScheduler().buildTask(BeepVelocity.this, sendAction)
                         .delay(666, TimeUnit.MILLISECONDS).schedule();
+            } else {
+                target.sendMessage(Component.translatable("beep.title", sender));
             }
         }
 

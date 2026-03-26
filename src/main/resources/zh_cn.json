@@ -1,5 +1,6 @@
 {
   "beep.title": "{0}在@你",
   "beep.subtitle": "",
-  "beep.console": "控制台"
+  "beep.console": "控制台",
+  "beep.cooldown": "请等待{0}秒后再使用此指令"
 }

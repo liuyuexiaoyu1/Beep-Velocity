@@ -1,5 +1,6 @@
 {
   "beep.title": "{0}",
   "beep.subtitle": "is pinging you",
-  "beep.console": "Console"
+  "beep.console": "Console",
+  "beep.cooldown": "Please wait {0}s before using this again"
 }
