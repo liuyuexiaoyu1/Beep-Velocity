@@ -14,6 +14,7 @@ public class BeepConfig {
     public long cooldownMillis = 3000;
     public long bigBeepCooldownMillis = 5000;
     public List<String> blacklistedPlayers = new ArrayList<>();
+    public boolean adminBypassCooldown = true;
 
     public static BeepConfig load(Path dataDirectory, Gson gson) {
         Path configFile = dataDirectory.resolve("config.json");

@@ -6,7 +6,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEn
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.inject.Inject;
-import com.velocitypowered.api.command.SimpleCommand;
+import com.velocitypowered.api.event.player.PlayerChatEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.plugin.Dependency;
@@ -36,7 +36,6 @@ import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import com.github.retrooper.packetevents.PacketEvents;
 import com.github.retrooper.packetevents.protocol.sound.Sounds;
 
@@ -61,10 +60,6 @@ public class BeepVelocity {
     public void onProxyInitialization(ProxyInitializeEvent event) {
         this.config = BeepConfig.load(dataDirectory, gson);
         loadAllLanguages();
-        server.getCommandManager().register(server.getCommandManager().metaBuilder("@").build(), new BeepCommand(false));
-        if (this.config.enableBigBeep) {
-            server.getCommandManager().register(server.getCommandManager().metaBuilder("@@").build(), new BeepCommand(true));
-        }
     }
 
     private void loadAllLanguages() {
@@ -129,96 +124,105 @@ public class BeepVelocity {
         }
     }
 
-    private class BeepCommand implements SimpleCommand {
-        private final boolean isBig;
-        public BeepCommand(boolean isBig) { this.isBig = isBig; }
+    @Subscribe
+    public void onPlayerChat(PlayerChatEvent event) {
+        Player player = event.getPlayer();
+        String message = event.getMessage();
 
-        @Override
-        public void execute(Invocation invocation) {
-            if (invocation.source() instanceof Player player) {
-                String name = player.getUsername();
-                String uuid = player.getUniqueId().toString();
-                boolean isBlacklisted = config.blacklistedPlayers.stream()
-                        .anyMatch(entry -> entry.equalsIgnoreCase(name) || entry.equalsIgnoreCase(uuid));
-                if (isBlacklisted) {
-                    player.sendMessage(Component.translatable("beep.blacklisted", NamedTextColor.RED));
-                    return;
-                }
-                long now = System.currentTimeMillis();
-                long lastUse = cooldowns.getOrDefault(player.getUniqueId(), 0L);
-                long requiredDelay = isBig ? config.bigBeepCooldownMillis : config.cooldownMillis;
+        boolean startsWithDoubleAt = message.startsWith("@@");
+        boolean startsWithSingleAt = !startsWithDoubleAt && message.startsWith("@");
 
-                if (now - lastUse < requiredDelay) {
-                    long timeLeft = (requiredDelay - (now - lastUse)) / 1000;
-                    player.sendMessage(Component.translatable(
-                            "beep.cooldown",
-                            NamedTextColor.RED,
-                            Component.text(timeLeft)
-                    ));
-                    return;
-                }
-                cooldowns.put(player.getUniqueId(), now);
-            }
-            String[] args = invocation.arguments();
-            if (args.length == 0) return;
+        if (!startsWithDoubleAt && !startsWithSingleAt) return;
 
-            Component sender = (invocation.source() instanceof Player p)
-                    ? Component.text(p.getUsername(), NamedTextColor.AQUA)
-                    : Component.translatable("beep.console");
+        if (startsWithDoubleAt && !config.enableBigBeep) return;
 
-            if (args[0].equalsIgnoreCase("all")) {
-                server.getAllPlayers().forEach(p -> playBeep(p, sender));
-            } else if(args[0].equalsIgnoreCase("thisServer")) {
-                if (invocation.source() instanceof Player p) {
-                    p.getCurrentServer().ifPresent(serverConnection -> {
-                        RegisteredServer server = serverConnection.getServer();
-                        server.getPlayersConnected().forEach(player -> playBeep(player, sender));
-                    });
-                } else {
-                    server.getAllPlayers().forEach(p -> playBeep(p, sender));
-                }
-            } else {
-                server.getPlayer(args[0]).ifPresentOrElse(
-                        p -> playBeep(p, sender),
-                        () -> invocation.source().sendMessage(Component.text("Player not found!", NamedTextColor.RED))
-                );
-            }
+        final boolean isBig = startsWithDoubleAt;
+        String content = (startsWithDoubleAt ? message.substring(2) : message.substring(1)).trim();
+
+        if (content.isEmpty()) return;
+
+        String[] parts = content.split(" ", 2);
+        String target = parts[0];
+
+        String name = player.getUsername();
+        String uuid = player.getUniqueId().toString();
+        boolean isBlacklisted = config.blacklistedPlayers.stream()
+                .anyMatch(entry -> entry.equalsIgnoreCase(name) || entry.equalsIgnoreCase(uuid));
+        if (isBlacklisted) {
+            player.sendMessage(Component.translatable("beep.blacklisted", NamedTextColor.RED));
+            return;
         }
 
-        private void playBeep(Player target, Component sender) {
-            Runnable sendAction = sendSoundPacket(target);
-            sendAction.run();
-            if (isBig) {
-                target.showTitle(Title.title(
-                        Component.translatable("beep.title", sender),
-                        Component.translatable("beep.subtitle"),
-                        Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(1000), Duration.ofMillis(200))
+        boolean bypassCooldown = config.adminBypassCooldown && player.hasPermission("beep.bypasscooldown");
+
+        if (!bypassCooldown) {
+            long now = System.currentTimeMillis();
+            long lastUse = cooldowns.getOrDefault(player.getUniqueId(), 0L);
+            long requiredDelay = isBig ? config.bigBeepCooldownMillis : config.cooldownMillis;
+
+            if (now - lastUse < requiredDelay) {
+                long timeLeft = (requiredDelay - (now - lastUse)) / 1000 + 1;
+                player.sendMessage(Component.translatable(
+                        "beep.cooldown",
+                        NamedTextColor.RED,
+                        Component.text(timeLeft)
                 ));
-
-                server.getScheduler().buildTask(BeepVelocity.this, sendAction)
-                        .delay(333, TimeUnit.MILLISECONDS).schedule();
-
-                server.getScheduler().buildTask(BeepVelocity.this, sendAction)
-                        .delay(666, TimeUnit.MILLISECONDS).schedule();
-            } else {
-                target.sendMessage(Component.translatable("beep.title", sender));
+                return;
             }
         }
 
-        @Override
-        public List<String> suggest(Invocation invocation) {
-            String[] args = invocation.arguments();
-            if (args.length <= 1) {
-                String prefix = args.length == 0 ? "" : args[0].toLowerCase();
-                List<String> suggestions = server.getAllPlayers().stream()
-                        .map(Player::getUsername)
-                        .filter(name -> name.toLowerCase().startsWith(prefix))
-                        .collect(Collectors.toList());
-                if ("all".startsWith(prefix)) suggestions.add("all");
-                if ("thisServer".startsWith(prefix)) suggestions.add("thisServer");
-                return suggestions;
+        Component sender = Component.text(player.getUsername(), NamedTextColor.AQUA);
+        boolean success = false;
+
+        if (target.equalsIgnoreCase("all")) {
+            server.getAllPlayers().forEach(p -> {
+                if (!p.getUsername().equalsIgnoreCase(player.getUsername())) {
+                    playBeep(p, sender, isBig);
+                }
+            });
+            success = true;
+        } else if (target.equalsIgnoreCase("thisServer")) {
+            player.getCurrentServer().ifPresent(serverConnection -> {
+                RegisteredServer rs = serverConnection.getServer();
+                rs.getPlayersConnected().forEach(p -> {
+                    if (!p.getUsername().equalsIgnoreCase(player.getUsername())) {
+                        playBeep(p, sender, isBig);
+                    }
+                });
+            });
+            success = true;
+        } else {
+            Optional<Player> targetPlayer = server.getPlayer(target);
+            if (targetPlayer.isPresent()) {
+                playBeep(targetPlayer.get(), sender, isBig);
+                success = true;
             }
-            return List.of();
+        }
+
+        if (success) {
+            if (!bypassCooldown) {
+                cooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+            }
+        }
+    }
+
+    private void playBeep(Player target, Component sender, boolean isBig) {
+        Runnable sendAction = sendSoundPacket(target);
+        sendAction.run();
+        if (isBig) {
+            target.showTitle(Title.title(
+                    Component.translatable("beep.title", sender),
+                    Component.translatable("beep.subtitle"),
+                    Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(1000), Duration.ofMillis(200))
+            ));
+
+            server.getScheduler().buildTask(BeepVelocity.this, sendAction)
+                    .delay(333, TimeUnit.MILLISECONDS).schedule();
+
+            server.getScheduler().buildTask(BeepVelocity.this, sendAction)
+                    .delay(666, TimeUnit.MILLISECONDS).schedule();
+        } else {
+            target.sendMessage(Component.translatable("beep.title", sender));
         }
     }
 
